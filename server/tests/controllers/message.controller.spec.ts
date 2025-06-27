@@ -38,7 +38,43 @@ describe('POST /addMessage', () => {
     expect(response.text).toBe('Invalid request');
   });
 
-  // TODO: Task 2 - Write additional test cases for addMessageRoute
+  it('should return 400 when msg or msgFrom is empty', async () => {
+    const invalidMessage = {
+      msg: '',               // blank
+      msgFrom: 'User1',
+      msgDateTime: new Date(),
+    };
+    saveMessageSpy.mockClear();   // not even called
+
+    const response = await supertest(app)
+      .post('/messaging/addMessage')
+      .send({ messageToAdd: invalidMessage });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'Invalid message. msg and msgFrom are required and must be non-empty strings.',
+    });
+    expect(saveMessageSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return 500 when saveMessage fails', async () => {
+    const validId = new mongoose.Types.ObjectId();
+    const message = {
+      _id: validId,
+      msg: 'Hello',
+      msgFrom: 'User1',
+      msgDateTime: new Date(),
+    };
+
+    saveMessageSpy.mockResolvedValue({ error: 'DB error' });
+
+    const response = await supertest(app)
+      .post('/messaging/addMessage')
+      .send({ messageToAdd: message });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ error: 'DB error' });
+  });
 });
 
 describe('GET /getMessages', () => {
@@ -72,5 +108,14 @@ describe('GET /getMessages', () => {
         msgDateTime: message2.msgDateTime.toISOString(),
       },
     ]);
+  });
+
+  it('should return 500 when getMessages throws', async () => {
+    getMessagesSpy.mockRejectedValue(new Error('oops'));
+
+    const response = await supertest(app).get('/messaging/getMessages');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ error: 'Internal server error' });
   });
 });

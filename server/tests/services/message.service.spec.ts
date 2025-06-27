@@ -27,23 +27,57 @@ describe('Message model', () => {
     });
 
     it('should return the saved message', async () => {
-      mockingoose(MessageModel).toReturn(message1, 'create');
+      mockingoose(MessageModel).toReturn(message1, 'save');
 
       const savedMessage = await saveMessage(message1);
-
       expect(savedMessage).toMatchObject(message1);
     });
-    // TODO: Task 2 - Write a test case for saveMessage when an error occurs
+
+    // error branch
+    it('should return an error when save operation fails', async () => {
+      const err = new Error('DB failure');
+      mockingoose(MessageModel).toReturn(err, 'save');
+
+      const result = await saveMessage(message1);
+      expect(result).toEqual({ error: 'DB failure' });
+    });
+
+    // fallback‐message branch (empty message)
+    it('should return fallback message when error has no message', async () => {
+      mockingoose(MessageModel).toReturn(new Error(), 'save');
+
+      const result = await saveMessage(message1);
+      expect(result).toEqual({ error: '' });
+    });
   });
 
   describe('getMessages', () => {
+    beforeEach(() => {
+      mockingoose.resetAll();
+    });
+
     it('should return all messages, sorted by date', async () => {
       mockingoose(MessageModel).toReturn([message2, message1], 'find');
 
       const messages = await getMessages();
-
       expect(messages).toMatchObject([message1, message2]);
     });
-    // TODO: Task 2 - Write a test case for getMessages when an error occurs
+
+    // error branch
+    it('should return an empty array when the query fails', async () => {
+      const err = new Error('Something went wrong');
+      mockingoose(MessageModel).toReturn(err, 'find');
+
+      const messages = await getMessages();
+      expect(messages).toEqual([]);
+    });
+
+    // empty‐DB branch
+    it('should return an empty array when there are no messages', async () => {
+      mockingoose(MessageModel).toReturn([], 'find');
+
+      const messages = await getMessages();
+      expect(messages).toEqual([]);
+    });
   });
 });
